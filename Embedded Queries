@@ -1,14 +1,16 @@
-import sqlite3
+import mysql.connector
 
 # Connect to the database
-conn = sqlite3.connect('example.db')
+cnx = mysql.connector.connect(user='your_username', password='your_password',
+                              host='your_host', database='your_database')
 
 # Execute the first query
-cursor = conn.execute('''SELECT SUM(p.Price)
-                         FROM products p
-                         JOIN carts c ON p.productid = c.productid
-                         JOIN orders o ON c.orderid = o.orderid
-                         WHERE o.orderid = 11''')
+cursor = cnx.cursor()
+cursor.execute('''SELECT SUM(p.Price)
+                  FROM products p
+                  JOIN carts c ON p.productid = c.productid
+                  JOIN orders o ON c.orderid = o.orderid
+                  WHERE o.orderid = 11''')
 
 # Fetch the result
 result = cursor.fetchone()
@@ -17,9 +19,9 @@ result = cursor.fetchone()
 print("Total price for order 11:", result[0])
 
 # Execute the second query
-cursor = conn.execute('''SELECT p.productid, p.productname, p.Price
-                         FROM products p
-                         WHERE p.Price BETWEEN 100 AND 10000''')
+cursor.execute('''SELECT p.productid, p.productname, p.Price
+                  FROM products p
+                  WHERE p.Price BETWEEN 100 AND 10000''')
 
 # Fetch the results
 results = cursor.fetchall()
@@ -30,4 +32,4 @@ for row in results:
     print(row)
 
 # Close the connection
-conn.close()
+cnx.close()
