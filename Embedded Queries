@@ -1,62 +1,35 @@
-#include <mysql.h>
+import mysql.connector
 
-int main() {
+# Connect to the database
+cnx = mysql.connector.connect(user='your_username', password='your_password',
+                              host='your_host', database='your_database')
 
-  //Executing first query
-  
-   MYSQL *connect1;                                                                               // MySQL connection object
-   MYSQL_RES *result1;                                                                            // MySQL result set object
-   MYSQL_ROW row1;                                                                                // MySQL row object
-   int query_result1;
+# Execute the first query
+cursor = cnx.cursor()
+cursor.execute('''SELECT SUM(p.Price)
+                  FROM products p
+                  JOIN carts c ON p.productid = c.productid
+                  JOIN orders o ON c.orderid = o.orderid
+                  WHERE o.orderid = 11''')
 
-   connect1 = mysql_init(NULL);                                                                   // Initializing MySQL connection object
-   mysql_real_connect(connect1, "localhost", "username", "password", "database", 0, NULL, 0);     // Connecting to MySQL server
+# Fetch the result
+result = cursor.fetchone()
 
-   query_result1 = mysql_query(connect1, "SELECT SUM(p.Price)
-                                        FROM products p
-                                        JOIN carts c ON p.productid = c.productid
-                                        JOIN orders o ON c.orderid = o.orderid
-                                        WHERE o.orderid = 11");                                  // Execute the SQL query
+# Print the result
+print("Total price for order 11:", result[0])
 
-   if (query_result1) {
-        printf("Error in executing the query\n");                                                 // Handling the query error
-   }
+# Execute the second query
+cursor.execute('''SELECT p.productid, p.productname, p.Price
+                  FROM products p
+                  WHERE p.Price BETWEEN 100 AND 10000''')
 
-   result1 = mysql_store_result(connect1);                                                          // Get the result set
+# Fetch the results
+results = cursor.fetchall()
 
-   while ((row1 = mysql_fetch_row(result1))) { // Loop through the result set
-      // Process the row data
-   }
+# Print the results
+print("\nProducts with prices between 100 and 10000:")
+for row in results:
+    print(row)
 
-   mysql_free_result(result1);                                                                      // Free the result set memory
-   mysql_close(connect1);                                                                           // Closing the MySQL connection
-
-  //Executing second query
-  
-   MYSQL *connect2;                                                                               // MySQL connection object
-   MYSQL_RES *result2;                                                                            // MySQL result set object
-   MYSQL_ROW row2;                                                                                // MySQL row object
-   int query_result2;
-
-   connect2 = mysql_init(NULL);                                                                   // Initializing MySQL connection object
-   mysql_real_connect(connect2, "localhost", "username", "password", "database", 0, NULL, 0);     // Connecting to MySQL server
-
-   query_result2 = mysql_query(connect2, "SELECT p.productid, p.productname, p.Price
-                                          FROM products p
-                                          WHERE p.Price BETWEEN 100 AND 10000");                   // Execute the SQL query
-
-   if (query_result2) {
-        printf("Error in executing the query\n");                                                 // Handling the query error
-   }
-
-   result2 = mysql_store_result(connect2);                                                          // Get the result set
-
-   while ((row2 = mysql_fetch_row(result2))) { // Loop through the result set
-      // Process the row data
-   }
-
-   mysql_free_result(result2);                                                                      // Free the result set memory
-   mysql_close(connect2);                                                                           // Closing the MySQL connection
-
-   return 0;
-}
+# Close the connection
+cnx.close()
