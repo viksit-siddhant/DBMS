@@ -49,13 +49,6 @@ create table products (
     FOREIGN KEY (sellerid) REFERENCES sellers(sellerid) on DELETE CASCADE
 );
 
-create table carts (
-    cartid INT NOT NULL AUTO_INCREMENT,
-    productid INT NOT NULL,
-    orderid INT NOT NULL,
-    PRIMARY KEY (cartid),
-    FOREIGN KEY (productid) REFERENCES products(productid) on DELETE CASCADE
-);
 
 
 create table orders (
