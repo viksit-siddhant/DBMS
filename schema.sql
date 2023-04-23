@@ -55,6 +55,8 @@ create table orders (
     orderid INT NOT NULL AUTO_INCREMENT,
     userid INT NOT NULL,
     haspaid INT NOT NULL DEFAULT 0,
+    ordercity VARCHAR(255),
+    orderstate VARCHAR(255),
     delivererid INT,
     PRIMARY KEY (orderid),
     FOREIGN KEY (userid) REFERENCES users(userid) on DELETE CASCADE,
@@ -66,6 +68,7 @@ create table carts (
     cartid INT NOT NULL AUTO_INCREMENT,
     productid INT NOT NULL,
     orderid INT NOT NULL,
+    quantity INT NOT NULL,
     PRIMARY KEY (cartid),
     FOREIGN KEY (productid) REFERENCES products(productid) on DELETE CASCADE,
     FOREIGN KEY (orderid) REFERENCES orders(orderid) on DELETE CASCADE

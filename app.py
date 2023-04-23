@@ -180,6 +180,7 @@ def admin_screen():
     print("Admin screen:")
     print("1. Ban a user")
     print("2. Ban a seller")
+    print("3. List all users")
     choice = input("Please enter your choice: ")
     if choice == "1":
         ban_user()
