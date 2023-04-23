@@ -121,6 +121,7 @@ def seller_mainmenu(seller):
     print("1. View your products")
     print("2. View your account details")
     print("3. Add a new product")
+    print("4. See geographical sales data")
     print("4. Logout")
     
     choice = input("Please enter your choice: ")
@@ -131,6 +132,10 @@ def seller_mainmenu(seller):
     elif choice == "3":
         add_product(seller)
     elif choice == "4":
+        cursor.execute("SELECT ordercity,orderstate, SUM(p.price) FROM orders JOIN cart ON orders.orderid = cart.orderid JOIN products p ON cart.productid = p.productid JOIN sellers s ON p.sellerid = s.sellerid WHERE s.username = %s GROUP BY ordercity, orderstate WITH ROLLUP", (seller,))
+        for row in cursor.fetchall():
+            print(row)
+    elif choice == "5":
         init_screen()
 
 def view_products(seller):
