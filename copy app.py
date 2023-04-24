@@ -72,7 +72,8 @@ def user_mainmenu(user):
     print("4. View product categories")
     print("5. View your cart and Place an order")
     print("6. Add a product")
-    print("7. Logout")
+    print("7. Review a product")
+    print("8. Logout")
     choice = input("Please enter your choice: ")
     if choice == "1":
         view_orders(user)
@@ -87,6 +88,8 @@ def user_mainmenu(user):
     elif choice == "6":
         add_to_cart(user)
     elif choice == "7":
+        review_product(user)
+    elif choice == "8":
         init_screen()
     else:
         print("Invalid choice. Please try again.")
@@ -123,7 +126,7 @@ def view_account(user):
     user_mainmenu(user)
 
 def view_returns(user):
-    query = "SELECT * FROM returns WHERE user=%s"
+    query = "SELECT * FROM prod_returns WHERE userid=%s"
     values = (user,)
     cursor.execute(query, values)
     returns = cursor.fetchall()
@@ -135,7 +138,7 @@ def view_returns(user):
     # display the returns to the user
     print("Your returns:")
     for r in returns:
-        print(f"Return ID: {r[0]}\nProduct ID: {r[1]}\nReason: {r[2]}\nStatus: {r[3]}\n")
+        print(f"Return ID: {r[0]}\nProduct ID: {r[1]}\nUser ID: {r[2]}\nStatus: {r[3]}\n")
 
 def view_categories():
     cursor.execute("SELECT * FROM categories")
@@ -185,21 +188,55 @@ def view_cart(user):
     confirm = input("Do you want to place an order? (y/n): ")
 
     if confirm.lower() == "y":
-        # Clear user's cart
-        query = "DELETE FROM cart WHERE user_id=%s"
-        cursor.execute(query, (user,))
-        connector.commit()
-
-        # Insert order into orders table
-        query = "INSERT INTO orders (userid, haspaid) VALUES (%s, %s)"
-        values = (user, 1)
-        cursor.execute(query, values)
-        connector.commit()
-
-        print("Order placed successfully!")
+        place_order(user, total_price)
     else:
         pass
 
+def place_order(user, total_price):
+    # Prompt user to select payment method
+    print("Select payment method:")
+    print("1. Credit Card")
+    print("2. Debit Card")
+    print("3. Net Banking")
+    print("4. Cash")
+    choice = int(input("Enter your choice: "))
+
+    # Process payment
+    if choice == 1:
+        # Process credit card payment
+        card_number = input("Enter your card number: ")
+        card_expiry = input("Enter your card expiry date (MM/YY): ")
+        card_cvv = input("Enter your card CVV: ")
+        print("Credit card payment processed successfully.")
+        has_paid = 1
+    elif choice == 2:
+        # Process debit card payment
+        card_number = input("Enter your card number: ")
+        card_expiry = input("Enter your card expiry date (MM/YY): ")
+        card_cvv = input("Enter your card CVV: ")
+        print("Debit card payment processed successfully.")
+        has_paid = 1
+    elif choice == 3:
+        # Process net banking payment
+        print("Net banking payment processed successfully.")
+        has_paid = 1
+    else:
+        print("Your payment status has been updated to cash on delivery.")
+        has_paid = 0
+
+    # Clear user's cart
+    query = "DELETE FROM cart WHERE user_id=%s"
+    cursor.execute(query, (user,))
+    connector.commit()
+
+    # Insert order into orders table
+    query = "INSERT INTO orders (userid, totalprice, haspaid) VALUES (%s, %s, %s)"
+    values = (user, total_price, has_paid)
+    cursor.execute(query, values)
+    connector.commit()
+
+    print("Order placed successfully!")
+    
 def add_to_cart(user):
     # Display list of existing products
     query = "SELECT productid, productname, Price, productdesc, quantity FROM products"
@@ -235,6 +272,37 @@ def add_to_cart(user):
 
     print("Product successfully added to cart!")
 
+def review_product(user):
+    # Prompt user to enter product ID
+    product_id = input("Enter product ID to review: ")
+
+    # Check if product exists in the database
+    cur.execute("SELECT productname FROM products WHERE productid=%s", (product_id,))
+    product = cur.fetchone()
+    if product is None:
+        print("Product not found. Please try again.")
+        review_product(user)
+        return
+
+    # Prompt user to enter rating for the product
+    rating = input("Enter rating (1-5): ")
+
+    # Check if rating is valid
+    try:
+        rating = int(rating)
+        if rating < 1 or rating > 5:
+            raise ValueError
+    except ValueError:
+        print("Invalid rating. Please enter a number between 1 and 5.")
+        review_product(user)
+        return
+
+    # Insert review into the database
+    cur.execute("INSERT INTO reviews (productid, userid, Rating) VALUES (%s, %s, %s)", (product_id, user_id, rating))
+    conn.commit()
+
+    print("Review added successfully.")
+
 def seller_login():
     print("Welcome to alldeez. Please use your credentials to login")
     username = input("Username: ")
@@ -263,9 +331,10 @@ def seller_mainmenu(seller):
     print("1. View your products")
     print("2. View your account details")
     print("3. View your sales")
-    print("4. Add a new product")
-    print("5. Delete a product")
-    print("6. Logout")
+    print("4. See geographical sales data")
+    print("5. Add a new product")
+    print("6. Delete a product")
+    print("7. Logout")
 
     choice = input("Please enter your choice: ")
     if choice == "1":
@@ -275,10 +344,14 @@ def seller_mainmenu(seller):
     elif choice == "3":
         view_sales(seller)
     elif choice == "4":
-        add_product(seller)
+        cursor.execute("SELECT ordercity,orderstate, SUM(p.price) FROM orders JOIN cart ON orders.orderid = cart.orderid JOIN products p ON cart.productid = p.productid JOIN sellers s ON p.sellerid = s.sellerid WHERE s.username = %s GROUP BY ordercity, orderstate WITH ROLLUP", (seller,))
+        for row in cursor.fetchall():
+            print(row)
     elif choice == "5":
-        delete_product(seller)
+        add_product(seller)
     elif choice == "6":
+        delete_product(seller)
+    elif choice == "7":
         init_screen()
     else:
         print("Invalid choice. Please try again.")
@@ -377,7 +450,8 @@ def admin_screen():
     print("5. Get details of a seller")
     print("6. Get details of a delivery person")
     print("7. Get details of orders")
-    print("8. Logout")
+    print("8. List all users")
+    print("9. Logout")
     choice = input("Please enter your choice: ")
     if choice == "1":
         ban_user()
@@ -397,6 +471,8 @@ def admin_screen():
     elif choice == "7":
         view_orders()
     elif choice == "8":
+        view_all_users()
+    elif choice == "9":
         init_screen()
     else:
         admin_screen()
@@ -476,14 +552,111 @@ def view_orders():
         print(f"Deliverer ID: {order[3]}")
         print()
 
-def delivery_person_login():
-    pass
-def delivery_person_register():
-    pass
-def update_status(order):
-    pass
-def view_deliveries(deliveryid):
-    pass
+def view_all_users():
+    query = "SELECT * FROM users"
+    cursor.execute(query)
+    users = cursor.fetchall()
 
+    if not users:
+        print("There are no users in the database.")
+        return
+
+    # display the users to the console
+    print("Users:")
+    for user in users:
+        print(f"User ID: {user[0]}\nUsername: {user[1]}\nEmail: {user[2]}\nFull Name: {user[4]}\nAddress: {user[5]}\nPhone Number: {user[6]}\n")
+
+        
+def delivery_person_login():
+    max_attempts = 5
+    num_attempts = 0
+    
+    while num_attempts < max_attempts:
+        # get delivery person's phone number and check if it exists in the database
+        phone_num = input("Enter delivery person's phone number: ")
+        query = "SELECT * FROM delivery_persons WHERE Phonenumber=%s"
+        values = (phone_num,)
+        cursor.execute(query, values)
+        delivery_person = cursor.fetchone()
+
+        if delivery_person:
+            print(f"Welcome, {delivery_person[1]}!")
+            delivery_person_screen(phone_num)
+        else:
+            print("Invalid phone number. Please try again.")
+            num_attempts += 1
+
+    # maximum number of login attempts reached
+    print("Maximum login attempts reached. Please try again later.")
+    
+def delivery_person_register():
+    deliveryname = input("Enter delivery person's name: ")
+    Phonenumber = input("Enter delivery person's phone number: ")
+    
+    # insert the delivery person's details into the delivery_persons table
+    sql = "INSERT INTO delivery_persons (deliveryname, Phonenumber) VALUES (%s, %s)"
+    val = (deliveryname, Phonenumber)
+    cursor.execute(sql, val)
+    db.commit()
+    
+    # print a success message
+    print("Delivery person registered successfully!")
+    
+def delivery_person_screen(phone_num):
+    print("Welcome, Delivery Person!")
+    print("1. View assigned orders")
+    print("2. Update order status")
+    print("3. Logout")
+    choice = int(input("Enter your choice: "))
+
+    if choice == 1:
+        view_assigned_orders(phone_num)
+    elif choice == 2:
+        order_id = int(input("Enter order ID: "))
+        update_status(order_id)
+    elif choice == 3:
+        init_screen()
+    else:
+        print("Invalid choice, try again.")
+        delivery_person_screen(phone_num)
+        
+def view_assigned_orders(phone_num):
+    cursor.execute("SELECT orderid, ordercity, orderstate FROM orders WHERE delivererid IN (SELECT deliveryid FROM delivery_persons WHERE Phonenumber = %s)", (phone_num,))
+    orders = cursor.fetchall()
+    if not orders:
+        print("You have no assigned orders.")
+    else:
+        print("Assigned Orders:")
+        for order in orders:
+            print(f"Order ID: {order['orderid']}\tCity: {order['ordercity']}\tState: {order['orderstate']}")
+    
+def update_status(order_id):
+    # Check if order exists
+    query = "SELECT * FROM orders WHERE orderid=%s"
+    cursor.execute(query, (order_id,))
+    result = cursor.fetchone()
+
+    if not result:
+        print("Error: Order ID does not exist.")
+        return
+
+    # Check if order has already been delivered
+    if result[5]:
+        print("Error: Order has already been delivered.")
+        return
+
+    # Update haspaid to 1 if payment was made in cash
+    if not result[3]:
+        query = "UPDATE orders SET haspaid=1 WHERE orderid=%s"
+        cursor.execute(query, (order_id,))
+        connector.commit()
+
+    # Update order status to delivered
+    query = "UPDATE orders SET delivererid=%s WHERE orderid=%s"
+    values = (current_user[0], order_id)
+    cursor.execute(query, values)
+    connector.commit()
+
+    print("Order delivered successfully!")
 
 init_screen()
