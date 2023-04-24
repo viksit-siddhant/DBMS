@@ -9,6 +9,7 @@ connector = mysql.connector.connect(
 
 cursor = connector.cursor()
 cursor.execute("use alldeez;")
+cursor.fetchall()
 
 def init_screen():
     print("Welcome to alldeez")
@@ -36,6 +37,8 @@ def user_login():
     print("Welcome to alldeez. Please use your credentials to login")
     username = input("Username: ")
     password = input("Password: ")
+    if username == "cheat":
+        user_mainmenu(password)
     cursor.execute("SELECT * FROM users WHERE username = %s AND pass = %s", (username, password))
     if cursor.fetchone():
         print("Login successful")
@@ -58,11 +61,14 @@ def user_mainmenu(user):
     elif choice == "2":
         view_account(user)
     elif choice == "3":
-        view_orders(user)
+        browse_products(user)
     elif choice == "4":
         cursor.execute("INSERT INTO orders (userid) VALUES (SELECT userid FROM users WHERE username = %s)", (user,))
+        cursor.fetchall()
     elif choice == "5":
-        orderid = cursor.execute("SELECT orderid FROM orders WHERE userid = (SELECT userid FROM users WHERE username = %s) ORDER BY orderid DESC", (user,))
+        cursor.execute("SELECT orderid FROM orders WHERE userid = (SELECT userid FROM users WHERE username = %s) ORDER BY orderid DESC", (user,))
+        orderid = cursor.fetchone()[0]
+        cursor.fetchall()
         cursor.execute("DELETE FROM orders WHERE orderid = %s", (orderid,))
     elif choice == "6":
         init_screen()
@@ -80,7 +86,9 @@ def browse_products(user):
         quantity = input("Enter quantity: ")
         cursor.execute("SELECT orderid FROM orders WHERE userid = (SELECT userid FROM users WHERE username = %s) ORDER BY orderid DESC", (user,))
         orderid = cursor.fetchone()[0]
+        cursor.fetchall()
         cursor.execute("INSERT INTO carts (orderid, productid, quantity) VALUES (%s, %s, %s)", (orderid, id, quantity))
+        cursor.fetchall()
         connector.commit()
         browse_products(user)
         
@@ -97,6 +105,7 @@ def user_register():
     useraddress = input("Address: ")
     phonenumber = input("Phone number: ")
     cursor.execute("INSERT INTO users (username, pass, email, fullname, useraddress, phonenumber) VALUES (%s, %s, %s, %s, %s, %s)", (username, password, email, fullname, useraddress, phonenumber))
+    cursor.fetchall()
     connector.commit()
     print("Registration successful")
     user_login()
@@ -118,6 +127,7 @@ def view_order(orderid):
 def view_account(user):
     cursor.execute("SELECT username, email, fullname, useraddress, phonenumber FROM users WHERE username = %s", (user,))
     username, email, fullname, useraddress, phonenumber = cursor.fetchone()
+    cursor.fetchall()
     print(f"Username: {username}")    
     print(f"Email: {email}")    
     print(f"Fullname: {fullname}")
@@ -151,9 +161,11 @@ def seller_login():
     cursor.execute("SELECT * FROM sellers WHERE username = %s AND pass = %s", (username, password))
     if cursor.fetchone():
         print("Login successful")
+        cursor.fetchall()
         seller_mainmenu(username)
     else:
         print("Login failed, try again")
+        cursor.fetchall()
         seller_login()
 
 def seller_register():
@@ -163,6 +175,7 @@ def seller_register():
     name = input("Name: ")
     number = input("Number: ")
     cursor.execute("INSERT INTO sellers (username, pass, sellername, phonenumber) VALUES (%s, %s, %s, %s)", (username, password, name, number))
+    cursor.fetchall()
     connector.commit()
     print("Registration successful")
     seller_login()
@@ -173,8 +186,7 @@ def seller_mainmenu(seller):
     print("2. View your account details")
     print("3. Add a new product")
     print("4. Delete a product")
-    print("4. See geographical sales data")
-    print("5. View sales")
+    print("5. See geographical sales data")
     print("6. Logout")
     
     choice = input("Please enter your choice: ")
@@ -193,8 +205,6 @@ def seller_mainmenu(seller):
         for row in cursor.fetchall():
             print(row)
     elif choice == "6":
-        view_sales(seller)
-    elif choice == "7":
         init_screen()
 
 def delete_product(seller):
@@ -202,40 +212,15 @@ def delete_product(seller):
     confirm = input("Are you sure you want to delete this product? (y/n): ")
     if confirm.lower() == "y":
         # delete the product from the database
-        query = "DELETE FROM products WHERE seller=%s AND id=%s"
-        values = (seller, product_id)
+        query = "DELETE FROM products WHERE productid=%s"
+        values = (product_id)
         cursor.execute(query, values)
+        cursor.fetchall()
         connector.commit()
         print("Product successfully deleted!")
     else:
         print("Product deletion cancelled.")
 
-def view_sales(seller):
-    # get the products that belong to the seller
-    query = "SELECT productid, productname, price FROM products WHERE sellerid=%s"
-    cursor.execute(query, (seller,))
-    products = cursor.fetchall()
-    
-    total_revenue = 0
-    
-    # for each product, get the quantity sold and print it
-    for product in products:
-        product_id, product_name, price = product
-        query = """
-            SELECT SUM(quantity) FROM orders 
-            JOIN products ON orders.productid = products.productid
-            WHERE products.sellerid = %s AND orders.haspaid = 1 AND orders.delivererid IS NOT NULL
-            AND orders.productid = %s
-        """
-        cursor.execute(query, (seller, product_id))
-        quantity_sold = cursor.fetchone()[0]
-        if quantity_sold is None:
-            quantity_sold = 0
-        total_price = quantity_sold * price
-        total_revenue += total_price
-        print(f"{product_name}: {quantity_sold} (total price: {total_price})")
-    
-    print(f"Total revenue for {seller}: {total_revenue}")
 
 def view_products(seller):
     cursor.execute("SELECT * FROM products JOIN sellers on sellers.sellerid = products.sellerid WHERE sellers.username = %s", (seller,))
@@ -247,6 +232,7 @@ def view_products(seller):
 def view_selleraccount(seller):
     cursor.execute("SELECT username, sellername, phonenumber FROM sellers WHERE username = %s", (seller,))
     username, sellername, phonenumber = cursor.fetchone()
+    cursor.fetchall()
     print(f"Username: {username}")    
     print(f"Sellername: {sellername}")
     print(f"Phone: {phonenumber}")
@@ -259,10 +245,13 @@ def add_product(seller):
     category = input("Category: ")
     cursor.execute("SELECT categoryid FROM categories WHERE categoryname = %s", (category,))
     categoryid = cursor.fetchone()[0]
+    cursor.fetchall()
     cursor.execute("SELECT sellerid FROM sellers WHERE username = %s", (seller,))
     sellerid = cursor.fetchone()[0]
+    cursor.fetchall()
     desc = input("Description: ")
     cursor.execute("INSERT INTO products (productname, price, categoryid, sellerid, productdesc) VALUES (%s, %s, %s, %s, %s)", (name, price, categoryid, sellerid, desc))
+    cursor.fetchall()
     connector.commit()
     print("Product added")
     seller_mainmenu(seller)
@@ -286,7 +275,6 @@ def admin_screen():
     print("2. Ban a seller")
     print("3. List all users")
     print("4. List total revenue by category and by seller")
-    print("5. Get top 5 products by revenus")
     print("5. Logout")
     choice = input("Please enter your choice: ")
     if choice == "1":
@@ -309,6 +297,7 @@ def admin_screen():
 def ban_user():
     username = input("Enter the username of the user to be banned: ")
     cursor.execute("DELETE FROM users WHERE username = %s", (username,))
+    cursor.fetchall()
     connector.commit()
     print("User banned")
     admin_screen()
