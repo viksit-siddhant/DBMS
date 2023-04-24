@@ -48,9 +48,9 @@ def user_mainmenu(user):
     print("Welcome to alldeez, " + user)
     print("1. View your orders")
     print("2. View your account details")
-    print("3. View pending returns")
-    print("4. Browse products")
-    print("5. Start new order")
+    print("3. Browse products")
+    print("4. Start new order")
+    print("5. Empty cart")
     print("6. Logout")
     choice = input("Please enter your choice: ")
     if choice == "1":
@@ -58,11 +58,12 @@ def user_mainmenu(user):
     elif choice == "2":
         view_account(user)
     elif choice == "3":
-        view_returns(user)
-    elif choice == "4":
         view_orders(user)
-    elif choice == "5":
+    elif choice == "4":
         cursor.execute("INSERT INTO orders (userid) VALUES (SELECT userid FROM users WHERE username = %s)", (user,))
+    elif choice == "5":
+        orderid = cursor.execute("SELECT orderid FROM orders WHERE userid = (SELECT userid FROM users WHERE username = %s) ORDER BY orderid DESC", (user,))
+        cursor.execute("DELETE FROM orders WHERE orderid = %s", (orderid,))
     elif choice == "6":
         init_screen()
 
@@ -139,6 +140,10 @@ def view_returns(user):
     for r in returns:
         print(f"Return ID: {r[0]}\nProduct ID: {r[1]}\nReason: {r[2]}\nStatus: {r[3]}\n")
 
+def get_user_id(user):
+    cursor.execute("SELECT userid FROM users WHERE username = %s", (user,))
+    return cursor.fetchone()[0]
+
 def seller_login():
     print("Welcome to alldeez. Please use your credentials to login")
     username = input("Username: ")
@@ -167,8 +172,10 @@ def seller_mainmenu(seller):
     print("1. View your products")
     print("2. View your account details")
     print("3. Add a new product")
+    print("4. Delete a product")
     print("4. See geographical sales data")
-    print("4. Logout")
+    print("5. View sales")
+    print("6. Logout")
     
     choice = input("Please enter your choice: ")
     if choice == "1":
@@ -177,12 +184,58 @@ def seller_mainmenu(seller):
         view_selleraccount(seller)
     elif choice == "3":
         add_product(seller)
+
     elif choice == "4":
+        delete_product(seller)
+
+    elif choice == "5":
         cursor.execute("SELECT ordercity,orderstate, SUM(p.price) FROM orders JOIN carts ON orders.orderid = carts.orderid JOIN products p ON carts.productid = p.productid JOIN sellers s ON p.sellerid = s.sellerid WHERE s.username = %s GROUP BY orderstate, ordercity WITH ROLLUP", (seller,))
         for row in cursor.fetchall():
             print(row)
-    elif choice == "5":
+    elif choice == "6":
+        view_sales(seller)
+    elif choice == "7":
         init_screen()
+
+def delete_product(seller):
+    product_id = input("Please enter the ID of the product you want to delete: ")
+    confirm = input("Are you sure you want to delete this product? (y/n): ")
+    if confirm.lower() == "y":
+        # delete the product from the database
+        query = "DELETE FROM products WHERE seller=%s AND id=%s"
+        values = (seller, product_id)
+        cursor.execute(query, values)
+        connector.commit()
+        print("Product successfully deleted!")
+    else:
+        print("Product deletion cancelled.")
+
+def view_sales(seller):
+    # get the products that belong to the seller
+    query = "SELECT productid, productname, price FROM products WHERE sellerid=%s"
+    cursor.execute(query, (seller,))
+    products = cursor.fetchall()
+    
+    total_revenue = 0
+    
+    # for each product, get the quantity sold and print it
+    for product in products:
+        product_id, product_name, price = product
+        query = """
+            SELECT SUM(quantity) FROM orders 
+            JOIN products ON orders.productid = products.productid
+            WHERE products.sellerid = %s AND orders.haspaid = 1 AND orders.delivererid IS NOT NULL
+            AND orders.productid = %s
+        """
+        cursor.execute(query, (seller, product_id))
+        quantity_sold = cursor.fetchone()[0]
+        if quantity_sold is None:
+            quantity_sold = 0
+        total_price = quantity_sold * price
+        total_revenue += total_price
+        print(f"{product_name}: {quantity_sold} (total price: {total_price})")
+    
+    print(f"Total revenue for {seller}: {total_revenue}")
 
 def view_products(seller):
     cursor.execute("SELECT * FROM products JOIN sellers on sellers.sellerid = products.sellerid WHERE sellers.username = %s", (seller,))
