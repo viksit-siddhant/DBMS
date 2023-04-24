@@ -49,7 +49,8 @@ def user_mainmenu(user):
     print("1. View your orders")
     print("2. View your account details")
     print("3. View pending returns")
-    print("4. Logout")
+    print("4. View your orders")
+    print("5. Logout")
     choice = input("Please enter your choice: ")
     if choice == "1":
         view_orders(user)
@@ -58,7 +59,16 @@ def user_mainmenu(user):
     elif choice == "3":
         view_returns(user)
     elif choice == "4":
+        see_orders(user)
+    elif choice == "5":
         init_screen()
+
+def see_orders(user):
+    cursor.execute("SELECT orderid FROM orders JOIN users on users.userid = orders.userid WHERE users.username = %s", (user,))
+    orders = cursor.fetchall()
+    for order in orders:
+        print(order)
+    user_mainmenu(user)
 
 def user_register():
     print("Welcome to alldeez. Please use your credentials to register")
@@ -132,7 +142,7 @@ def seller_mainmenu(seller):
     elif choice == "3":
         add_product(seller)
     elif choice == "4":
-        cursor.execute("SELECT ordercity,orderstate, SUM(p.price) FROM orders JOIN cart ON orders.orderid = cart.orderid JOIN products p ON cart.productid = p.productid JOIN sellers s ON p.sellerid = s.sellerid WHERE s.username = %s GROUP BY ordercity, orderstate WITH ROLLUP", (seller,))
+        cursor.execute("SELECT ordercity,orderstate, SUM(p.price) FROM orders JOIN carts ON orders.orderid = carts.orderid JOIN products p ON carts.productid = p.productid JOIN sellers s ON p.sellerid = s.sellerid WHERE s.username = %s GROUP BY orderstate, ordercity WITH ROLLUP", (seller,))
         for row in cursor.fetchall():
             print(row)
     elif choice == "5":
@@ -186,11 +196,25 @@ def admin_screen():
     print("1. Ban a user")
     print("2. Ban a seller")
     print("3. List all users")
+    print("4. List total revenue by category and by seller")
+    print("5. Logout")
     choice = input("Please enter your choice: ")
     if choice == "1":
         ban_user()
     elif choice == "2":
         ban_seller()
+    elif choice == "3":
+        cursor.execute("SELECT username, email, fullname, useraddress, phonenumber FROM users")
+        for row in cursor.fetchall():
+            print(row)
+        admin_screen()
+    elif choice == "4":
+        cursor.execute("SELECT SUM(p.price) from orders o JOIN carts c ON o.orderid = c.orderid JOIN products p ON c.productid = p.productid JOIN sellers s on s.sellerid = p.sellerid JOIN categories c on p.categoryid = c.categoryid GROUP BY p.categoryid,s.sellerid WITH ROLLUP")
+        for row in cursor.fetchall():
+            print(row)
+        admin_screen()
+    elif choice == "5":
+        init_screen()
 
 def ban_user():
     username = input("Enter the username of the user to be banned: ")
