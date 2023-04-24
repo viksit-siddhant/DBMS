@@ -18,7 +18,8 @@ def init_screen():
     print("3. Login as seller")
     print("4. Register as seller")
     print("5. Login as admin")
-    print("6. Exit")
+    print("6. Login as delivery person")
+    print("7. Exit")
     choice = input("Please enter your choice: ")
     if choice == "1":
         user_login()
@@ -31,6 +32,8 @@ def init_screen():
     elif choice == "5":
         admin_login()
     elif choice == "6":
+        delivery_login() 
+    elif choice == "7":
         exit()
 
 def user_login():
@@ -42,9 +45,11 @@ def user_login():
     cursor.execute("SELECT * FROM users WHERE username = %s AND pass = %s", (username, password))
     if cursor.fetchone():
         print("Login successful")
+        cursor.fetchall()
         user_mainmenu(username)
     else:
         print("Login failed, try again")
+        cursor.fetchall()
         user_login()
 
 def user_mainmenu(user):
@@ -70,6 +75,7 @@ def user_mainmenu(user):
         orderid = cursor.fetchone()[0]
         cursor.fetchall()
         cursor.execute("DELETE FROM orders WHERE orderid = %s", (orderid,))
+        cursor.fetchall()
     elif choice == "6":
         init_screen()
 
@@ -308,5 +314,28 @@ def ban_seller():
     connector.commit()
     print("Seller banned")
     admin_screen()
+
+def delivery_login():
+    number = input("Please enter your delivery number: ")
+    name = input("Please enter your name: ")
+    cursor.execute("SELECT deliveryid FROM delivery_persons WHERE phonenumber = %s AND deliveryname = %s", (number, name))
+    deliveryid = cursor.fetchone()
+    cursor.fetchall()
+    if deliveryid is None:
+        print("Login failed, try again")
+        delivery_login()
+    else:
+        print("Login successful")
+        delivery_screen(deliveryid[0])
+
+def delivery_screen(deliveryid):
+    print("See your orders below")
+    cursor.execute("SELECT orderid, ordercity, orderstate FROM orders WHERE delivererid = %s", (deliveryid,))
+    for row in cursor.fetchall():
+        print(row)
+    print("1. Go back")
+    choice = input("Please enter your choice: ")
+    if choice == "1":
+        init_screen()
 
 init_screen()
