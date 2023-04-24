@@ -49,8 +49,9 @@ def user_mainmenu(user):
     print("1. View your orders")
     print("2. View your account details")
     print("3. View pending returns")
-    print("4. View your orders")
-    print("5. Logout")
+    print("4. Browse products")
+    print("5. Start new order")
+    print("6. Logout")
     choice = input("Please enter your choice: ")
     if choice == "1":
         view_orders(user)
@@ -59,16 +60,32 @@ def user_mainmenu(user):
     elif choice == "3":
         view_returns(user)
     elif choice == "4":
-        see_orders(user)
+        view_orders(user)
     elif choice == "5":
+        cursor.execute("INSERT INTO orders (userid) VALUES (SELECT userid FROM users WHERE username = %s)", (user,))
+    elif choice == "6":
         init_screen()
 
-def see_orders(user):
-    cursor.execute("SELECT orderid FROM orders JOIN users on users.userid = orders.userid WHERE users.username = %s", (user,))
-    orders = cursor.fetchall()
-    for order in orders:
-        print(order)
-    user_mainmenu(user)
+def browse_products(user):
+    cursor.execute("SELECT productid, productname, price, sellername FROM products JOIN sellers ON sellers.sellerid = products.sellerid")
+    print(" \t\tName\t\tPrice\t\tSeller")
+    for i,row in enumerate(cursor.fetchall()):
+        print(row[0],"\t\t",row[1],"\t\t",row[2],"\t\t",row[3])
+    print("1. Add to cart")
+    print("2. Go back")
+    choice = input("Please enter your choice: ")
+    if choice == "1":
+        id = input("Enter product id: ")
+        quantity = input("Enter quantity: ")
+        cursor.execute("SELECT orderid FROM orders WHERE userid = (SELECT userid FROM users WHERE username = %s) ORDER BY orderid DESC", (user,))
+        orderid = cursor.fetchone()[0]
+        cursor.execute("INSERT INTO carts (orderid, productid, quantity) VALUES (%s, %s, %s)", (orderid, id, quantity))
+        connector.commit()
+        browse_products(user)
+        
+    elif choice == "2":
+        user_mainmenu(user)
+    
 
 def user_register():
     print("Welcome to alldeez. Please use your credentials to register")
@@ -84,11 +101,18 @@ def user_register():
     user_login()
 
 def view_orders(user):
-    cursor.execute("SELECT * FROM orders JOIN users on users.userid = orders.userid WHERE users.username = %s", (user,))
+    cursor.execute("SELECT orderid FROM orders JOIN users on users.userid = orders.userid WHERE users.username = %s", (user,))
     orders = cursor.fetchall()
     for order in orders:
-        print(order)
+        print("Order #",order," :")
+        view_order(order[0])
     user_mainmenu(user)
+
+def view_order(orderid):
+    cursor.execute("SELECT p.productname, p.price, c.quantity FROM carts c JOIN products p ON p.productid = c.productid where c.orderid = %s", (orderid,))
+    print("Name\t\tPrice\t\tQuantity")
+    for row in cursor.fetchall():
+        print(row[0],"\t\t",row[1],"\t\t",row[2])
     
 def view_account(user):
     cursor.execute("SELECT username, email, fullname, useraddress, phonenumber FROM users WHERE username = %s", (user,))
@@ -101,7 +125,19 @@ def view_account(user):
     user_mainmenu(user)
 
 def view_returns(user):
-    pass
+    query = "SELECT * FROM returns WHERE user=%s"
+    values = (user,)
+    cursor.execute(query, values)
+    returns = cursor.fetchall()
+
+    if not returns:
+        print("You have no returns to view.")
+        return
+
+    # display the returns to the user
+    print("Your returns:")
+    for r in returns:
+        print(f"Return ID: {r[0]}\nProduct ID: {r[1]}\nReason: {r[2]}\nStatus: {r[3]}\n")
 
 def seller_login():
     print("Welcome to alldeez. Please use your credentials to login")
@@ -197,6 +233,7 @@ def admin_screen():
     print("2. Ban a seller")
     print("3. List all users")
     print("4. List total revenue by category and by seller")
+    print("5. Get top 5 products by revenus")
     print("5. Logout")
     choice = input("Please enter your choice: ")
     if choice == "1":
