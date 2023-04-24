@@ -73,7 +73,8 @@ def user_mainmenu(user):
     print("5. View your cart and Place an order")
     print("6. Add a product")
     print("7. Review a product")
-    print("8. Logout")
+    print("8. Request a return")
+    print("9. Logout")
     choice = input("Please enter your choice: ")
     if choice == "1":
         view_orders(user)
@@ -90,6 +91,8 @@ def user_mainmenu(user):
     elif choice == "7":
         review_product(user)
     elif choice == "8":
+        add_return(user)
+    elif choice == "9":
         init_screen()
     else:
         print("Invalid choice. Please try again.")
@@ -235,7 +238,7 @@ def place_order(user, total_price):
     cursor.execute(query, values)
     connector.commit()
 
-    print("Order placed successfully!")
+    print("Order placed successfully and will be delivered within next 5-6 working days!")
     
 def add_to_cart(user):
     # Display list of existing products
@@ -303,6 +306,25 @@ def review_product(user):
 
     print("Review added successfully.")
 
+def add_return(user):
+    print("This is the return policy of our retail store.")
+    print()
+    print("We have a 30-day return policy for all products purchased from our store.")
+    print("If you are not satisfied with your purchase, you may return it within 30 days of the delivery date.")
+    print("To initiate a return, please log in to your account and go to the 'Request a Return' option in the user menu.")
+    print("You will be asked to provide the reason for the return and to select a return method.")
+    print("Once your return request is approved, you will receive further instructions on how to proceed.")
+    print()
+    order_id = input("Enter the order ID for the product you want to return: ")
+    reason = input("Enter the reason for the return: ")
+    product_id = input("Enter the product ID for the product you want to return: ")
+
+    # insert return request into prod_returns table
+    cursor.execute("INSERT INTO prod_returns (orderid, userid, reason, productid, status) VALUES (%s, %s, %s, %s, %s)", (order_id, get_user_id(user), reason, product_id, "Pending"))
+    connector.commit()
+    print("Return request submitted successfully.")
+    user_mainmenu(user)
+    
 def seller_login():
     print("Welcome to alldeez. Please use your credentials to login")
     username = input("Username: ")
