@@ -69,12 +69,13 @@ def user_mainmenu(user):
     print("1. View your orders")
     print("2. View your account details")
     print("3. View pending returns")
-    print("4. View product categories")
+    print("4. Browse products")
     print("5. View your cart and Place an order")
     print("6. Add a product")
     print("7. Review a product")
     print("8. Request a return")
-    print("9. Logout")
+    print("9. Empty a cart")
+    print("10. Logout")
     choice = input("Please enter your choice: ")
     if choice == "1":
         view_orders(user)
@@ -83,7 +84,7 @@ def user_mainmenu(user):
     elif choice == "3":
         view_returns(user)
     elif choice == "4":
-        view_categories()
+        browse_products()
     elif choice == "5":
         view_cart(user)
     elif choice == "6":
@@ -93,6 +94,11 @@ def user_mainmenu(user):
     elif choice == "8":
         add_return(user)
     elif choice == "9":
+        cursor.execute("SELECT orderid FROM orders WHERE userid = (SELECT userid FROM users WHERE username = %s) ORDER BY orderid DESC", (user,))
+        orderid = cursor.fetchone()[0]
+        cursor.fetchall()
+        cursor.execute("DELETE FROM orders WHERE orderid = %s", (orderid,))
+    elif choice =="10":
         init_screen()
     else:
         print("Invalid choice. Please try again.")
@@ -143,29 +149,27 @@ def view_returns(user):
     for r in returns:
         print(f"Return ID: {r[0]}\nProduct ID: {r[1]}\nUser ID: {r[2]}\nStatus: {r[3]}\n")
 
-def view_categories():
-    cursor.execute("SELECT * FROM categories")
-    categories = cursor.fetchall()
-    print("Available Categories:")
-    for category in categories:
-        print(f"{category[0]}. {category[1]}")
-    choice = input("Enter category ID to view products: ")
-    try:
-        category_id = int(choice)
-        view_category_products(category_id)
-    except ValueError:
-        print("Invalid input. Please enter a number.")
-        view_categories()
-
-def view_category_products(category_id):
-    cursor.execute("SELECT * FROM products WHERE categoryid = %s", (category_id,))
-    products = cursor.fetchall()
-    if products:
-        print(f"Products under category {category_id}:")
-        for product in products:
-            print(f"Product ID: {product[0]}, Name: {product[3]}, Price: {product[4]}")
-    else:
-        print("No products found under this category.")   
+def browse_products(user):
+    cursor.execute("SELECT productid, productname, price, sellername FROM products JOIN sellers ON sellers.sellerid = products.sellerid")
+    print(" \t\tName\t\tPrice\t\tSeller")
+    for i,row in enumerate(cursor.fetchall()):
+        print(row[0],"\t\t",row[1],"\t\t",row[2],"\t\t",row[3])
+    print("1. Add to cart")
+    print("2. Go back")
+    choice = input("Please enter your choice: ")
+    if choice == "1":
+        id = input("Enter product id: ")
+        quantity = input("Enter quantity: ")
+        cursor.execute("SELECT orderid FROM orders WHERE userid = (SELECT userid FROM users WHERE username = %s) ORDER BY orderid DESC", (user,))
+        orderid = cursor.fetchone()[0]
+        cursor.fetchall()
+        cursor.execute("INSERT INTO carts (orderid, productid, quantity) VALUES (%s, %s, %s)", (orderid, id, quantity))
+        cursor.fetchall()
+        connector.commit()
+        browse_products(user)
+        
+    elif choice == "2":
+        user_mainmenu(user)
 
 def view_cart(user):
     # Retrieve all products in user's cart
